@@ -31,7 +31,11 @@ if (-not (Test-Path $gh)) { throw "GitHub CLI (gh) not found. Install it with: w
 # The token stays in this process only and is never printed.
 cmd /c "`"$gh`" auth status >nul 2>&1"
 if ($LASTEXITCODE -ne 0 -and -not $env:GH_TOKEN) {
-  $answer = "protocol=https`nhost=github.com`n`n" | git credential fill
+  # (the request goes through a plain file so that PowerShell's pipe encoding cannot garble it)
+  $ask = [IO.Path]::GetTempFileName()
+  [IO.File]::WriteAllText($ask, "protocol=https`nhost=github.com`n`n")
+  $answer = cmd /c "git credential fill < `"$ask`""
+  Remove-Item $ask
   $line = $answer | Where-Object { $_ -like 'password=*' } | Select-Object -First 1
   if (-not $line) { throw "No GitHub login found. Run: gh auth login" }
   $env:GH_TOKEN = $line.Substring('password='.Length)
