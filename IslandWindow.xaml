@@ -1,0 +1,496 @@
+<Window x:Class="DynamicIsland.IslandWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:DynamicIsland"
+        Title="Dynamic Island"
+        Width="460" Height="480"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" Focusable="False"
+        ResizeMode="NoResize"
+        FontFamily="Segoe UI Variable Display, Segoe UI, Malgun Gothic">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="TextBrush" Color="White"/>
+        <SolidColorBrush x:Key="SubBrush" Color="#9EFFFFFF"/>
+        <SolidColorBrush x:Key="TrackBrush" Color="#2EFFFFFF"/>
+        <SolidColorBrush x:Key="FillBrush" Color="#70FFFFFF"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF7AA8"/>
+        <SolidColorBrush x:Key="OnAccentBrush" Color="White"/>
+
+        <Style x:Key="IconBtn" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Margin" Value="6,0"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <Ellipse x:Name="bg" Fill="{DynamicResource TextBrush}" Opacity="0"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.12"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.24"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 강조색 알약 버튼 (비밀번호 입력 옆 "연결") -->
+        <Style x:Key="PillBtn" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="b" Background="{DynamicResource AccentBrush}" CornerRadius="11" Padding="16,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="b" Property="Opacity" Value="0.88"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="b" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid x:Name="Root">
+
+        <Grid x:Name="PillHost" HorizontalAlignment="Center" VerticalAlignment="Top"
+              Width="140" Height="34" Margin="0,8,0,0">
+
+            <Border x:Name="Glow" Opacity="0.6" IsHitTestVisible="False" Visibility="Collapsed">
+                <Border.Effect>
+                    <BlurEffect Radius="22"/>
+                </Border.Effect>
+            </Border>
+
+            <Border x:Name="Pill" Background="Black">
+                <Grid x:Name="PillContent">
+
+                    <local:ParticleLayer x:Name="Particles"/>
+
+                    <!-- 접힌 상태: 시계 또는 (앨범 아트 + 제목 + 비주얼라이저) -->
+                    <Grid x:Name="CompactLayer">
+                        <Border x:Name="CompactThumb" Width="22" Height="22" CornerRadius="6"
+                                HorizontalAlignment="Left" Margin="8,0,0,0" Visibility="Collapsed">
+                            <Border.Background>
+                                <ImageBrush x:Name="CompactThumbBrush" Stretch="UniformToFill"/>
+                            </Border.Background>
+                        </Border>
+                        <TextBlock x:Name="CompactTitle" FontSize="11.5" Margin="38,0,44,0"
+                                   Foreground="{DynamicResource TextBrush}" TextTrimming="CharacterEllipsis"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        <!-- 기본 상태: 시계 + CPU·메모리 사용량 + (노트북이면) 배터리 -->
+                        <StackPanel x:Name="IdleRow" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock x:Name="ClockText" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextBrush}"/>
+                            <StackPanel x:Name="StatsPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="11,0,0,0">
+                                <TextBlock Text="CPU" FontSize="9" FontWeight="SemiBold" Margin="0,1,3,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SubBrush}"/>
+                                <TextBlock x:Name="CpuText" FontSize="11.5" MinWidth="27" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextBrush}"/>
+                                <TextBlock Text="RAM" FontSize="9" FontWeight="SemiBold" Margin="6,1,3,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SubBrush}"/>
+                                <TextBlock x:Name="RamText" FontSize="11.5" MinWidth="27" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextBrush}"/>
+                            </StackPanel>
+                            <StackPanel x:Name="BatteryPanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                                <TextBlock x:Name="BatteryGlyph" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15"
+                                           VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                                <TextBlock x:Name="BatteryText" FontSize="11.5" Margin="3,0,0,0" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <local:VisualizerView x:Name="CompactVis" Width="24" Height="16"
+                                              HorizontalAlignment="Right" Margin="0,0,12,0" Visibility="Collapsed"/>
+                    </Grid>
+
+                    <!-- 펼친 상태: 음악 -->
+                    <Grid x:Name="MediaLayer" Width="380" Height="156" HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Opacity="0" Visibility="Collapsed">
+                        <Grid Margin="20,18,20,8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="54" Height="54" CornerRadius="12" Background="{DynamicResource TrackBrush}">
+                                    <TextBlock Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="22"
+                                               Foreground="{DynamicResource SubBrush}"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <Border Width="54" Height="54" CornerRadius="12">
+                                    <Border.Background>
+                                        <ImageBrush x:Name="ArtBrush" Stretch="UniformToFill"/>
+                                    </Border.Background>
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="13,0,10,0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="TitleText" FontSize="14" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextBrush}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="ArtistText" FontSize="12" Margin="0,2,0,0"
+                                               Foreground="{DynamicResource SubBrush}" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <local:VisualizerView x:Name="BigVis" Grid.Column="2" Width="34" Height="24" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <Grid Grid.Row="1" Margin="0,11,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="PosText" Width="36" FontSize="10.5" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SubBrush}"/>
+                                <Border x:Name="Track" Grid.Column="1" Height="14" Background="Transparent" Cursor="Hand"
+                                        MouseLeftButtonDown="Track_Click">
+                                    <Grid Height="5" VerticalAlignment="Center">
+                                        <Border CornerRadius="2.5" Background="{DynamicResource TrackBrush}"/>
+                                        <Border x:Name="TrackFill" CornerRadius="2.5" Width="0" HorizontalAlignment="Left"
+                                                Background="{DynamicResource TextBrush}"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock x:Name="DurText" Grid.Column="2" Width="36" FontSize="10.5" TextAlignment="Right"
+                                           VerticalAlignment="Center" Foreground="{DynamicResource SubBrush}"/>
+                            </Grid>
+
+                            <Grid Grid.Row="2">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE892;" Click="Prev_Click" ToolTip="이전 곡"/>
+                                    <Button x:Name="PlayBtn" Style="{StaticResource IconBtn}" Content="&#xE768;" FontSize="23" Click="Play_Click"/>
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE893;" Click="Next_Click" ToolTip="다음 곡"/>
+                                </StackPanel>
+                                <Button Style="{StaticResource IconBtn}" Content="&#xE9E9;" FontSize="14" Width="32" Height="32" Margin="0"
+                                        HorizontalAlignment="Left" VerticalAlignment="Center" Click="OpenControl_Click" ToolTip="제어 센터"/>
+                                <Button Style="{StaticResource IconBtn}" Content="&#xE790;" FontSize="14" Width="32" Height="32" Margin="0"
+                                        HorizontalAlignment="Right" VerticalAlignment="Center" Click="Gear_Click" ToolTip="테마 꾸미기"/>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+
+                    <!-- 펼친 상태: 제어 센터 (Wi-Fi, 블루투스, 볼륨, 밝기 + 재생 중이면 미니 플레이어) -->
+                    <StackPanel x:Name="ControlLayer" Width="380" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Opacity="0" Visibility="Collapsed">
+                        <StackPanel Margin="16,14,16,12">
+
+                            <Grid Height="26">
+                                <!-- 시계·날짜를 누르면 캘린더가 열린다 -->
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0" Background="Transparent"
+                                            Cursor="Hand" MouseLeftButtonUp="CalendarOpen_Click" ToolTip="캘린더 열기">
+                                    <TextBlock x:Name="CtrlClock" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                                    <TextBlock x:Name="CtrlDate" FontSize="11.5" Margin="9,0,0,1" VerticalAlignment="Bottom"
+                                               Foreground="{DynamicResource SubBrush}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="BackToMusicBtn" Style="{StaticResource IconBtn}" Content="&#xE8D6;" FontSize="13"
+                                            Width="28" Height="28" Margin="0,0,2,0" Click="BackToMusic_Click" ToolTip="음악으로 돌아가기"/>
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE787;" FontSize="13"
+                                            Width="28" Height="28" Margin="0,0,2,0" Click="CalendarButton_Click" ToolTip="캘린더"
+                                            AutomationProperties.Name="캘린더 열기"/>
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE790;" FontSize="13"
+                                            Width="28" Height="28" Margin="0" Click="Gear_Click" ToolTip="테마 꾸미기"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- 컴퓨터 상태: CPU / 메모리 / 배터리 -->
+                            <Grid Height="28" Margin="4,8,4,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition x:Name="BatteryGap" Width="12"/>
+                                    <ColumnDefinition x:Name="BatteryColumn" Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid>
+                                    <TextBlock Text="CPU" FontSize="10.5" Foreground="{DynamicResource SubBrush}"/>
+                                    <TextBlock x:Name="CtrlCpuText" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource TextBrush}"/>
+                                    <local:MiniMeter x:Name="CpuMeter" Height="4" VerticalAlignment="Bottom"/>
+                                </Grid>
+                                <Grid Grid.Column="2">
+                                    <TextBlock Text="메모리" FontSize="10.5" Foreground="{DynamicResource SubBrush}"/>
+                                    <TextBlock x:Name="CtrlRamText" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource TextBrush}"/>
+                                    <local:MiniMeter x:Name="RamMeter" Height="4" VerticalAlignment="Bottom"/>
+                                </Grid>
+                                <Grid x:Name="CtrlBattery" Grid.Column="4">
+                                    <TextBlock x:Name="CtrlBatteryLabel" Text="배터리" FontSize="10.5" Foreground="{DynamicResource SubBrush}"/>
+                                    <TextBlock x:Name="CtrlBatteryText" FontSize="11" HorizontalAlignment="Right" Foreground="{DynamicResource TextBrush}"/>
+                                    <local:MiniMeter x:Name="BatteryMeter" Height="4" VerticalAlignment="Bottom"/>
+                                </Grid>
+                            </Grid>
+
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border x:Name="WifiTile" CornerRadius="16" Height="54" Cursor="Hand"
+                                        Background="{DynamicResource TrackBrush}" MouseLeftButtonUp="WifiTile_Click"
+                                        ToolTip="눌러서 Wi-Fi 켜기/끄기">
+                                    <Grid Margin="13,0,6,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="&#xE701;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Margin="10,0,4,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Wi-Fi" FontSize="12.5" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="WifiStatus" FontSize="10.5" Opacity="0.78" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <Button x:Name="WifiMore" Grid.Column="2" Style="{StaticResource IconBtn}" Content="&#xE76C;" FontSize="10"
+                                                Width="26" Height="26" Margin="0" Click="WifiMore_Click" ToolTip="주변 Wi-Fi 목록"
+                                                AutomationProperties.Name="Wi-Fi 목록"/>
+                                    </Grid>
+                                </Border>
+
+                                <Border x:Name="BluetoothTile" Grid.Column="2" CornerRadius="16" Height="54" Cursor="Hand"
+                                        Background="{DynamicResource TrackBrush}" MouseLeftButtonUp="BluetoothTile_Click"
+                                        ToolTip="눌러서 블루투스 켜기/끄기">
+                                    <Grid Margin="13,0,6,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="&#xE702;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Margin="10,0,4,0" VerticalAlignment="Center">
+                                            <TextBlock Text="Bluetooth" FontSize="12.5" FontWeight="SemiBold"/>
+                                            <TextBlock x:Name="BluetoothStatus" FontSize="10.5" Opacity="0.78" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <Button x:Name="BluetoothMore" Grid.Column="2" Style="{StaticResource IconBtn}" Content="&#xE76C;" FontSize="10"
+                                                Width="26" Height="26" Margin="0" Click="BluetoothMore_Click" ToolTip="블루투스 기기 목록"
+                                                AutomationProperties.Name="블루투스 목록"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <Grid Height="30" Margin="0,8,0,0">
+                                <local:IslandSlider x:Name="VolumeSlider"/>
+                                <Button x:Name="MuteBtn" Style="{StaticResource IconBtn}" Content="&#xE767;" FontSize="14"
+                                        Width="30" Height="30" Margin="5,0,0,0" HorizontalAlignment="Left" Click="Mute_Click" ToolTip="음소거"/>
+                                <TextBlock x:Name="VolumeText" FontSize="11" Foreground="{DynamicResource TextBrush}" IsHitTestVisible="False"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,38,0"/>
+                                <Button Style="{StaticResource IconBtn}" Content="&#xE7F5;" FontSize="13"
+                                        Width="28" Height="28" Margin="0,0,4,0" HorizontalAlignment="Right" Click="AudioMore_Click"
+                                        ToolTip="소리 출력 장치 고르기" AutomationProperties.Name="소리 출력 목록"/>
+                            </Grid>
+
+                            <Grid x:Name="BrightRow" Height="30" Margin="0,8,0,0" Visibility="Collapsed">
+                                <local:IslandSlider x:Name="BrightSlider"/>
+                                <TextBlock Text="&#xE706;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
+                                           Foreground="{DynamicResource TextBrush}" IsHitTestVisible="False"
+                                           HorizontalAlignment="Left" VerticalAlignment="Center" Margin="13,0,0,0"/>
+                                <TextBlock x:Name="BrightText" FontSize="11" Foreground="{DynamicResource TextBrush}" IsHitTestVisible="False"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,13,0"/>
+                            </Grid>
+
+                            <Grid x:Name="MiniPlayer" Height="36" Margin="0,8,0,0" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Width="30" Height="30" CornerRadius="8" Margin="3,0,0,0" Background="{DynamicResource TrackBrush}"/>
+                                <Border Width="30" Height="30" CornerRadius="8" Margin="3,0,0,0">
+                                    <Border.Background>
+                                        <ImageBrush x:Name="MiniThumbBrush" Stretch="UniformToFill"/>
+                                    </Border.Background>
+                                </Border>
+                                <TextBlock x:Name="MiniTitle" Grid.Column="1" Margin="10,0,6,0" FontSize="12" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextBrush}" TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE892;" FontSize="12" Width="30" Height="30" Margin="1,0" Click="Prev_Click"/>
+                                    <Button x:Name="MiniPlayBtn" Style="{StaticResource IconBtn}" Content="&#xE768;" FontSize="14" Width="30" Height="30" Margin="1,0" Click="Play_Click"/>
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE893;" FontSize="12" Width="30" Height="30" Margin="1,0" Click="Next_Click"/>
+                                </StackPanel>
+                            </Grid>
+
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 제어 센터의 목록 화면: 주변 Wi-Fi / 블루투스 기기 / 소리 출력 장치 -->
+                    <StackPanel x:Name="ListLayer" Width="380" HorizontalAlignment="Center" VerticalAlignment="Top"
+                                Opacity="0" Visibility="Collapsed">
+                        <StackPanel x:Name="ListBody" Margin="14,12,14,12">
+                            <Grid Height="30">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE72B;" FontSize="12" Width="28" Height="28" Margin="0"
+                                            Click="ListBack_Click" ToolTip="제어 센터로 돌아가기"
+                                            AutomationProperties.Name="제어 센터로 돌아가기"/>
+                                    <TextBlock x:Name="ListTitle" FontSize="14" FontWeight="SemiBold" Margin="7,0,0,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextBrush}"/>
+                                    <TextBlock x:Name="ListSub" FontSize="11" Margin="9,1,0,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SubBrush}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE72C;" FontSize="12" Width="28" Height="28" Margin="0,0,2,0"
+                                            Click="ListRefresh_Click" ToolTip="새로 고침"/>
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE713;" FontSize="12" Width="28" Height="28" Margin="0"
+                                            Click="ListSettings_Click" ToolTip="윈도우 설정에서 열기"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <ScrollViewer x:Name="ListScroll" MaxHeight="232" Margin="0,6,0,0" Focusable="False"
+                                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel x:Name="ListItems"/>
+                            </ScrollViewer>
+
+                            <!-- 비밀번호가 필요한 Wi-Fi를 골랐을 때만 나타난다 -->
+                            <StackPanel x:Name="PasswordPanel" Margin="0,8,0,0" Visibility="Collapsed">
+                                <TextBlock x:Name="PasswordLabel" FontSize="11.5" Margin="4,0,0,5" Foreground="{DynamicResource SubBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <Grid Height="34">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border CornerRadius="11" Background="{DynamicResource TrackBrush}"/>
+                                    <TextBlock x:Name="PasswordPlaceholder" Text="비밀번호" FontSize="13" Margin="13,0,0,0" IsHitTestVisible="False"
+                                               VerticalAlignment="Center" Foreground="{DynamicResource SubBrush}"/>
+                                    <PasswordBox x:Name="PasswordInput" Background="Transparent" BorderThickness="0" FontSize="13"
+                                                 Padding="10,0" VerticalContentAlignment="Center"
+                                                 Foreground="{DynamicResource TextBrush}" CaretBrush="{DynamicResource TextBrush}"
+                                                 PasswordChanged="PasswordInput_Changed" KeyDown="PasswordInput_KeyDown"
+                                                 PreviewMouseLeftButtonDown="PasswordInput_MouseDown"/>
+                                    <Button x:Name="PasswordGo" Grid.Column="1" Style="{StaticResource PillBtn}" Content="연결"
+                                            Margin="8,0,0,0" Click="PasswordGo_Click"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <TextBlock x:Name="ListNote" FontSize="11" Margin="4,8,4,0" TextWrapping="Wrap" Visibility="Collapsed"
+                                       Foreground="{DynamicResource SubBrush}"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 캘린더: 달력 + 고른 날짜의 메모 -->
+                    <StackPanel x:Name="CalendarLayer" Width="380" HorizontalAlignment="Center" VerticalAlignment="Top"
+                                Opacity="0" Visibility="Collapsed" PreviewMouseWheel="Calendar_Wheel" Background="Transparent">
+                        <StackPanel x:Name="CalendarBody" Margin="14,12,14,12">
+                            <Grid Height="30">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE72B;" FontSize="12" Width="28" Height="28" Margin="0"
+                                            Click="CalendarBack_Click" ToolTip="제어 센터로 돌아가기" AutomationProperties.Name="캘린더 닫기"/>
+                                    <TextBlock x:Name="CalendarTitle" FontSize="14" FontWeight="SemiBold" Margin="7,0,0,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextBrush}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE8D1;" FontSize="12" Width="28" Height="28" Margin="0,0,2,0"
+                                            Click="CalendarToday_Click" ToolTip="오늘로" AutomationProperties.Name="오늘로"/>
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE76B;" FontSize="11" Width="28" Height="28" Margin="0,0,2,0"
+                                            Click="CalendarPrev_Click" ToolTip="이전 달" AutomationProperties.Name="이전 달"/>
+                                    <Button Style="{StaticResource IconBtn}" Content="&#xE76C;" FontSize="11" Width="28" Height="28" Margin="0"
+                                            Click="CalendarNext_Click" ToolTip="다음 달" AutomationProperties.Name="다음 달"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <UniformGrid x:Name="CalendarWeekdays" Columns="7" Margin="0,6,0,2"/>
+                            <UniformGrid x:Name="CalendarGrid" Columns="7" Rows="6"/>
+
+                            <TextBlock x:Name="CalendarDayText" FontSize="12" FontWeight="SemiBold" Margin="4,8,0,3"
+                                       Foreground="{DynamicResource TextBrush}" TextTrimming="CharacterEllipsis"/>
+                            <ScrollViewer MaxHeight="56" Focusable="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel x:Name="MemoItems"/>
+                            </ScrollViewer>
+
+                            <Grid Height="32" Margin="0,6,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border CornerRadius="10" Background="{DynamicResource TrackBrush}"/>
+                                <TextBlock x:Name="MemoPlaceholder" Text="이 날짜에 메모 추가" FontSize="12.5" Margin="12,0,0,0" IsHitTestVisible="False"
+                                           VerticalAlignment="Center" Foreground="{DynamicResource SubBrush}"/>
+                                <TextBox x:Name="MemoInput" Background="Transparent" BorderThickness="0" FontSize="12.5" MaxLength="60"
+                                         Padding="9,0" VerticalContentAlignment="Center"
+                                         Foreground="{DynamicResource TextBrush}" CaretBrush="{DynamicResource TextBrush}"
+                                         TextChanged="MemoInput_Changed" KeyDown="MemoInput_KeyDown"
+                                         PreviewMouseLeftButtonDown="MemoInput_MouseDown" AutomationProperties.Name="메모 입력"/>
+                                <Button Grid.Column="1" Style="{StaticResource PillBtn}" Content="추가" Margin="8,0,0,0" Click="MemoAdd_Click"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 잠금이 풀렸을 때의 Face ID 풍 연출 -->
+                    <Grid x:Name="UnlockLayer" Width="200" Height="58" HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Opacity="0" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Grid Width="34" Height="34">
+                                <Ellipse x:Name="UnlockRing" Stroke="{DynamicResource AccentBrush}" StrokeThickness="2"/>
+                                <TextBlock x:Name="UnlockGlyph" Text="&#xE72E;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15"
+                                           Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           RenderTransformOrigin="0.5,0.5">
+                                    <TextBlock.RenderTransform>
+                                        <ScaleTransform x:Name="UnlockScale"/>
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </Grid>
+                            <TextBlock x:Name="UnlockText" Text="잠금 해제됨" FontSize="13.5" FontWeight="SemiBold" Margin="12,0,0,0"
+                                       VerticalAlignment="Center" Foreground="{DynamicResource TextBrush}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- 알림 -->
+                    <Grid x:Name="NotifLayer" Width="380" Height="92" HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Opacity="0" Visibility="Collapsed">
+                        <Grid Margin="18,0,22,0" VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="42" Height="42" CornerRadius="11" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center">
+                                <TextBlock x:Name="NotifInitial" FontSize="19" FontWeight="Bold"
+                                           Foreground="{DynamicResource OnAccentBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Width="42" Height="42" CornerRadius="11" VerticalAlignment="Center">
+                                <Border.Background>
+                                    <ImageBrush x:Name="NotifIconBrush" Stretch="UniformToFill"/>
+                                </Border.Background>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="13,0,0,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="NotifApp" FontSize="10.5" Foreground="{DynamicResource SubBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="NotifTitle" FontSize="13.5" FontWeight="SemiBold" Margin="0,1,0,0"
+                                           Foreground="{DynamicResource TextBrush}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="NotifBody" FontSize="12" Margin="0,1,0,0" MaxHeight="33"
+                                           Foreground="{DynamicResource SubBrush}" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- 캐릭터 무대: 창 전체에 깔리지만 캐릭터 위에서만 클릭을 받는다 -->
+        <local:CharacterStage x:Name="Stage"/>
+    </Grid>
+</Window>

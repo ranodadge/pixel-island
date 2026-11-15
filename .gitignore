@@ -1,0 +1,13 @@
+# 빌드 결과물
+bin/
+obj/
+
+# 설치파일 (GitHub 릴리스에 올린다)
+dist/
+
+# 편집기·도구가 만드는 파일
+.vs/
+.vscode/
+.idea/
+*.user
+.claude/
